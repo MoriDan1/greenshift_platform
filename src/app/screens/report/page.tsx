@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, FileSpreadsheet, FileText, Leaf, Upload, TrendingDown, TrendingUp } from "lucide-react";
+import { CarFront, ChevronRight, Download, FileSpreadsheet, FileText, Leaf, Upload, TrendingDown, TrendingUp } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 import { fetchESGReport, fmtEUR, fmtNumber, vehicleTypeLabel } from "../../../lib/api";
 
@@ -10,11 +10,58 @@ const COVER_BG =
 
 type ReportData = Awaited<ReturnType<typeof fetchESGReport>>;
 
+type CarModelOption = {
+  brand: string;
+  model: string;
+  logoSrc: string;
+  color: string;
+};
+
+function VehicleLogo({ model, compact = false }: { model: CarModelOption; compact?: boolean }) {
+  const sizeClass = compact ? "w-9 h-9" : "w-12 h-12";
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return (
+      <div className={`${sizeClass} rounded-xl overflow-hidden`} aria-label={`${model.brand} logo`} role="img">
+        <svg viewBox="0 0 96 96" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="6" width="84" height="84" rx="22" fill={model.color} />
+          <text x="48" y="54" textAnchor="middle" fill="white" fontSize="26" fontWeight="700" fontFamily="Arial, sans-serif">
+            {model.brand.slice(0, 1)}
+          </text>
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${sizeClass} rounded-xl overflow-hidden`} aria-label={`${model.brand} logo`} role="img">
+      <img
+        src={model.logoSrc}
+        alt={`${model.brand} logo`}
+        className="w-full h-full object-contain bg-white p-2"
+        onError={() => setHasError(true)}
+      />
+    </div>
+  );
+}
+
+const CAR_MODELS: CarModelOption[] = [
+  { brand: "Tesla", model: "Model 3", logoSrc: "/assets/telsa.png", color: "#E82127" },
+  { brand: "Toyota", model: "Corolla Hybrid", logoSrc: "/assets/toyota.png", color: "#EB0A1E" },
+  { brand: "Fiat", model: "Ducato", logoSrc: "/assets/fiat.png", color: "#1B1B1B" },
+  { brand: "Volkswagen", model: "Golf", logoSrc: "/assets/volk.png", color: "#0C3A75" },
+  { brand: "Renault", model: "Kangoo", logoSrc: "/assets/renault.png", color: "#FFCC00" },
+  { brand: "Nissan", model: "Leaf", logoSrc: "/assets/nissan.png", color: "#C3002F" },
+];
+
 export default function ESGReport() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(String(currentYear));
   const [data, setData] = useState<ReportData | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [selectedCarModel, setSelectedCarModel] = useState<CarModelOption | null>(null);
+  const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -25,12 +72,21 @@ export default function ESGReport() {
     fileInputRef.current?.click();
   };
 
+  const handleImportModel = () => {
+    setIsModelPickerOpen(true);
+  };
+
   const handleExcelChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setSelectedFileName(file.name);
     event.target.value = "";
+  };
+
+  const handleModelSelect = (model: CarModelOption) => {
+    setSelectedCarModel(model);
+    setIsModelPickerOpen(false);
   };
 
   const handleDownloadPDF = () => {
@@ -71,6 +127,9 @@ export default function ESGReport() {
           <Button onClick={handleImportExcel} className="bg-[#1A4D2E] text-white hover:bg-[#133922]" data-testid="ESG-import-excel-btn">
             <Upload className="w-4 h-4 mr-2" /> Importa file Excel
           </Button>
+          <Button onClick={handleImportModel} variant="outline" data-testid="ESG-import-model-btn">
+            <CarFront className="w-4 h-4 mr-2" /> Importa modello
+          </Button>
         </div>
       </div>
 
@@ -86,6 +145,70 @@ export default function ESGReport() {
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 flex items-center gap-2">
           <FileSpreadsheet className="w-4 h-4" />
           File selezionato: <strong>{selectedFileName}</strong>
+        </div>
+      ) : null}
+
+      {selectedCarModel ? (
+        <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl border border-sky-200 bg-white flex items-center justify-center shadow-sm overflow-hidden shrink-0">
+            <VehicleLogo model={selectedCarModel} compact />
+          </div>
+          <div>
+            <div className="font-medium">Modello importato</div>
+            <div className="flex items-center gap-2">
+              <strong>{selectedCarModel.brand} {selectedCarModel.model}</strong>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isModelPickerOpen ? (
+        <div className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm px-4 py-6 flex items-center justify-center">
+          <div className="w-full max-w-4xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-widest text-[#1A4D2E]">Importa modello</div>
+                <h2 className="font-display text-2xl font-bold text-slate-900">Scegli un modello di auto</h2>
+              </div>
+              <button
+                type="button"
+                className="text-sm font-medium text-slate-500 hover:text-slate-900"
+                onClick={() => setIsModelPickerOpen(false)}
+              >
+                Chiudi
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-6 bg-slate-50">
+              {CAR_MODELS.map((model) => (
+                <button
+                  key={`${model.brand}-${model.model}`}
+                  type="button"
+                  onClick={() => handleModelSelect(model)}
+                  className="group text-left rounded-xl border border-slate-200 bg-white p-4 hover:shadow-md hover:border-slate-300 transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-16 h-16 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                      <VehicleLogo model={model} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">{model.brand}</div>
+                      <div className="font-semibold text-slate-900 truncate">{model.model}</div>
+                      <div className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: model.color }} />
+                        Clicca per importare  
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between text-sm text-slate-500 group-hover:text-slate-700">
+                    <span>Importa questo modello</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
 
